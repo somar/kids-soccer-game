@@ -1,6 +1,6 @@
 # Kids Soccer Game 🥅⚽
 
-A fun, simple soccer game built with Python and Pygame that you can play with your kids!
+A fun, simple soccer game built with HTML5 Canvas and JavaScript that you can play with your kids!
 
 ## Features
 
@@ -8,23 +8,15 @@ A fun, simple soccer game built with Python and Pygame that you can play with yo
 - Colorful soccer field with goals
 - Ball physics with bouncing and friction
 - Kid-friendly graphics and animations
-
-## Installation
-
-1. Make sure you have Python 3.11+ installed
-2. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Runs in any modern web browser - no installation needed!
 
 ## How to Play
 
-1. Run the game:
-   ```bash
-   python main.py
-   ```
+1. **Open the game:**
+   - Double-click `index.html` to open in your browser
+   - Or serve locally: `python -m http.server 8000` then visit `http://localhost:8000`
 
-2. Use these controls:
+2. **Use these controls:**
    - **Arrow Keys** or **WASD**: Move your player
    - **Move into the ball**: Kick the ball in the direction you're moving
    - **Goal**: Try to get the ball into the yellow goals!
