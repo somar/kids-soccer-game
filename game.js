@@ -11,6 +11,17 @@ class Game {
         this.ball = new Ball(this.width / 2, this.height / 2 + 50);
         this.field = new Field(this.width, this.height);
         
+        // Scoring system
+        this.leftScore = 0;
+        this.rightScore = 0;
+        this.goalCelebrationTimer = 0;
+        this.lastGoalScorer = null;
+        
+        // Goal dimensions (matching Field class)
+        this.goalWidth = 30;
+        this.goalHeight = 150; 
+        this.goalY = (this.height - this.goalHeight) / 2;
+        
         // Input handling
         this.keys = {};
         this.setupInput();
@@ -22,11 +33,32 @@ class Game {
     setupInput() {
         document.addEventListener('keydown', (e) => {
             this.keys[e.code] = true;
+            
+            // Handle restart
+            if (e.code === 'KeyR') {
+                this.restart();
+            }
         });
         
         document.addEventListener('keyup', (e) => {
             this.keys[e.code] = false;
         });
+    }
+    
+    restart() {
+        // Reset scores
+        this.leftScore = 0;
+        this.rightScore = 0;
+        this.goalCelebrationTimer = 0;
+        this.lastGoalScorer = null;
+        
+        // Reset positions
+        this.player.x = this.width / 2;
+        this.player.y = this.height / 2;
+        this.ball.x = this.width / 2;
+        this.ball.y = this.height / 2 + 50;
+        this.ball.vx = 0;
+        this.ball.vy = 0;
     }
     
     update() {
@@ -37,6 +69,55 @@ class Game {
         if (this.player.collidesWith(this.ball)) {
             this.ball.kick(this.player.getKickDirection());
         }
+        
+        // Check for goals
+        this.checkGoals();
+        
+        // Update goal celebration timer
+        if (this.goalCelebrationTimer > 0) {
+            this.goalCelebrationTimer--;
+        }
+    }
+    
+    checkGoals() {
+        const ballX = this.ball.x;
+        const ballY = this.ball.y;
+        const ballRadius = this.ball.radius;
+        
+        // Left goal area: x: 20-50, y: goalY to goalY+goalHeight
+        if (ballX - ballRadius <= 50 && ballX + ballRadius >= 20 && 
+            ballY >= this.goalY && ballY <= this.goalY + this.goalHeight) {
+            this.scoreGoal('right'); // Right player scores in left goal
+        }
+        
+        // Right goal area: x: 750-780, y: goalY to goalY+goalHeight  
+        if (ballX + ballRadius >= 750 && ballX - ballRadius <= 780 &&
+            ballY >= this.goalY && ballY <= this.goalY + this.goalHeight) {
+            this.scoreGoal('left'); // Left player scores in right goal
+        }
+    }
+    
+    scoreGoal(scorer) {
+        // Increment score
+        if (scorer === 'left') {
+            this.leftScore++;
+        } else {
+            this.rightScore++;
+        }
+        
+        // Start celebration
+        this.goalCelebrationTimer = 120; // 2 seconds at 60fps
+        this.lastGoalScorer = scorer;
+        
+        // Reset ball to center
+        this.ball.x = this.width / 2;
+        this.ball.y = this.height / 2;
+        this.ball.vx = 0;
+        this.ball.vy = 0;
+        
+        // Reset player to center
+        this.player.x = this.width / 2;
+        this.player.y = this.height / 2;
     }
     
     draw() {
@@ -48,6 +129,59 @@ class Game {
         this.field.draw(this.ctx);
         this.player.draw(this.ctx);
         this.ball.draw(this.ctx);
+        
+        // Draw score
+        this.drawScore();
+        
+        // Draw goal celebration
+        if (this.goalCelebrationTimer > 0) {
+            this.drawGoalCelebration();
+        }
+    }
+    
+    drawScore() {
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = 'bold 36px Arial';
+        this.ctx.textAlign = 'center';
+        
+        // Draw score in center top
+        const scoreText = `${this.leftScore} - ${this.rightScore}`;
+        this.ctx.fillText(scoreText, this.width / 2, 50);
+        
+        // Draw team labels
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.fillStyle = '#0064FF'; // Blue for player
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText('PLAYER', this.width / 2 - 40, 50);
+        
+        this.ctx.fillStyle = '#FF4444'; // Red for opponent (future AI)
+        this.ctx.textAlign = 'left'; 
+        this.ctx.fillText('OPPONENT', this.width / 2 + 40, 50);
+    }
+    
+    drawGoalCelebration() {
+        // Flashing goal text
+        if (Math.floor(this.goalCelebrationTimer / 10) % 2 === 0) {
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.font = 'bold 48px Arial';
+            this.ctx.textAlign = 'center';
+            
+            const celebrationText = this.lastGoalScorer === 'left' ? 'PLAYER GOAL!' : 'OPPONENT GOAL!';
+            this.ctx.fillText(celebrationText, this.width / 2, this.height / 2 - 50);
+        }
+        
+        // Goal celebration particles (simple circles)
+        for (let i = 0; i < 10; i++) {
+            const angle = (this.goalCelebrationTimer + i * 36) * Math.PI / 180;
+            const radius = 60 + (120 - this.goalCelebrationTimer) * 2;
+            const x = this.width / 2 + Math.cos(angle) * radius;
+            const y = this.height / 2 + Math.sin(angle) * radius;
+            
+            this.ctx.fillStyle = `hsl(${(this.goalCelebrationTimer + i * 36) % 360}, 100%, 60%)`;
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 4, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
     }
     
     gameLoop() {
