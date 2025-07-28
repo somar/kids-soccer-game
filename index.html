@@ -11,14 +11,39 @@
         <h1>⚽ Kids Soccer Game ⚽</h1>
         <div class="controls">
             <p><strong>Controls:</strong> Use Arrow Keys or WASD to move • Run into the ball to kick it!</p>
+            <p><strong>AI Difficulty:</strong> 1=Easy • 2=Medium • 3=Hard • 4=Friendly • A=Toggle Adaptive</p>
+            <p><strong>Audio Controls:</strong> M = Toggle Sound • +/- = Volume Up/Down</p>
+            <p><strong>New Features:</strong> ⚡ Speed Boost • 🥅 Big Goals • 🧲 Ball Magnet • 🏆 Achievements!</p>
         </div>
         <canvas id="gameCanvas" width="800" height="600"></canvas>
         <div class="instructions">
             <p>Try to get the ball into the yellow goals! 🥅</p>
+            <p>Collect glowing power-ups for special abilities! ✨</p>
+            <p>Unlock achievements by playing and scoring goals! 🏆</p>
             <p>Have fun playing with your kids! 🎮</p>
             <p><small>Press R to restart game</small></p>
         </div>
     </div>
-    <script src="game.js"></script>
+    <!-- Core Game Classes -->
+    <script src="js/core/Player.js"></script>
+    <script src="js/core/Ball.js"></script>
+    <script src="js/core/Field.js"></script>
+    
+    <!-- Audio System -->
+    <script src="js/audio/AudioManager.js"></script>
+    
+    <!-- AI System -->
+    <script src="js/ai/AIPerformanceTracker.js"></script>
+    <script src="js/ai/EnhancedAIPlayer.js"></script>
+    
+    <!-- Game Systems -->
+    <script src="js/systems/PowerUp.js"></script>
+    <script src="js/systems/AchievementSystem.js"></script>
+    
+    <!-- Effects -->
+    <script src="js/effects/ParticleSystem.js"></script>
+    
+    <!-- Main Game -->
+    <script src="js/Game.js"></script>
 </body>
 </html>
