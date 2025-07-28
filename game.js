@@ -8,6 +8,7 @@ class Game {
         
         // Game objects
         this.player = new Player(this.width / 2, this.height / 2);
+        this.aiPlayer = new AIPlayer(this.width / 2, this.height / 2 - 100);
         this.ball = new Ball(this.width / 2, this.height / 2 + 50);
         this.field = new Field(this.width, this.height);
         
@@ -16,6 +17,8 @@ class Game {
         this.rightScore = 0;
         this.goalCelebrationTimer = 0;
         this.lastGoalScorer = null;
+        this.countdownTimer = 180; // 3 seconds at 60fps
+        this.gameState = 'countdown'; // 'countdown', 'playing', 'goal_celebration'
         
         // Goal dimensions (matching Field class)
         this.goalWidth = 30;
@@ -51,10 +54,14 @@ class Game {
         this.rightScore = 0;
         this.goalCelebrationTimer = 0;
         this.lastGoalScorer = null;
+        this.countdownTimer = 180;
+        this.gameState = 'countdown';
         
         // Reset positions
         this.player.x = this.width / 2;
         this.player.y = this.height / 2;
+        this.aiPlayer.x = this.width / 2;
+        this.aiPlayer.y = this.height / 2 - 100;
         this.ball.x = this.width / 2;
         this.ball.y = this.height / 2 + 50;
         this.ball.vx = 0;
@@ -62,7 +69,27 @@ class Game {
     }
     
     update() {
+        // Handle game states
+        if (this.gameState === 'countdown') {
+            this.countdownTimer--;
+            if (this.countdownTimer <= 0) {
+                this.gameState = 'playing';
+            }
+            return; // Don't update gameplay during countdown
+        }
+        
+        if (this.gameState === 'goal_celebration') {
+            this.goalCelebrationTimer--;
+            if (this.goalCelebrationTimer <= 0) {
+                this.gameState = 'countdown';
+                this.countdownTimer = 180; // 3 second countdown
+            }
+            return; // Don't update gameplay during celebration
+        }
+        
+        // Normal gameplay
         this.player.update(this.keys);
+        this.aiPlayer.update(this.ball);
         this.ball.update();
         
         // Check player-ball collision
@@ -70,13 +97,13 @@ class Game {
             this.ball.kick(this.player.getKickDirection());
         }
         
+        // Check AI player-ball collision
+        if (this.aiPlayer.collidesWith(this.ball)) {
+            this.ball.kick(this.aiPlayer.getKickDirection());
+        }
+        
         // Check for goals
         this.checkGoals();
-        
-        // Update goal celebration timer
-        if (this.goalCelebrationTimer > 0) {
-            this.goalCelebrationTimer--;
-        }
     }
     
     checkGoals() {
@@ -108,6 +135,7 @@ class Game {
         // Start celebration
         this.goalCelebrationTimer = 120; // 2 seconds at 60fps
         this.lastGoalScorer = scorer;
+        this.gameState = 'goal_celebration';
         
         // Reset ball to center
         this.ball.x = this.width / 2;
@@ -115,9 +143,11 @@ class Game {
         this.ball.vx = 0;
         this.ball.vy = 0;
         
-        // Reset player to center
+        // Reset players to center
         this.player.x = this.width / 2;
         this.player.y = this.height / 2;
+        this.aiPlayer.x = this.width / 2;
+        this.aiPlayer.y = this.height / 2 - 100;
     }
     
     draw() {
@@ -128,14 +158,17 @@ class Game {
         // Draw game objects
         this.field.draw(this.ctx);
         this.player.draw(this.ctx);
+        this.aiPlayer.draw(this.ctx);
         this.ball.draw(this.ctx);
         
         // Draw score
         this.drawScore();
         
-        // Draw goal celebration
-        if (this.goalCelebrationTimer > 0) {
+        // Draw game state overlays
+        if (this.gameState === 'goal_celebration') {
             this.drawGoalCelebration();
+        } else if (this.gameState === 'countdown') {
+            this.drawCountdown();
         }
     }
     
@@ -182,6 +215,33 @@ class Game {
             this.ctx.arc(x, y, 4, 0, Math.PI * 2);
             this.ctx.fill();
         }
+    }
+    
+    drawCountdown() {
+        // Semi-transparent overlay
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        
+        // Countdown number
+        this.ctx.fillStyle = '#FFD700';
+        this.ctx.font = 'bold 72px Arial';
+        this.ctx.textAlign = 'center';
+        
+        const secondsLeft = Math.ceil(this.countdownTimer / 60);
+        let countdownText = '';
+        
+        if (secondsLeft > 0) {
+            countdownText = secondsLeft.toString();
+        } else {
+            countdownText = 'GO!';
+        }
+        
+        this.ctx.fillText(countdownText, this.width / 2, this.height / 2);
+        
+        // Ready text
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = 'bold 24px Arial';
+        this.ctx.fillText('Get Ready!', this.width / 2, this.height / 2 - 80);
     }
     
     gameLoop() {
@@ -353,6 +413,137 @@ class Ball {
             ctx.arc(this.x + xOffset, this.y + yOffset, 2, 0, Math.PI * 2);
             ctx.fill();
         }
+    }
+}
+
+class AIPlayer {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 20;
+        this.speed = 2.5; // Slower than human player for fairness
+        this.color = '#FF4444'; // Red
+        this.lastMoveX = 0;
+        this.lastMoveY = 0;
+        this.reactionDelay = 0;
+        this.targetGoalX = 50; // Aims for left goal (correct goal for AI)
+    }
+    
+    update(ball) {
+        // Add some reaction delay for more realistic AI
+        if (this.reactionDelay > 0) {
+            this.reactionDelay--;
+            return;
+        }
+        
+        let dx = 0;
+        let dy = 0;
+        
+        // Less aggressive AI: Only chase ball sometimes
+        const ballDistance = Math.sqrt((this.x - ball.x) ** 2 + (this.y - ball.y) ** 2);
+        
+        if (ballDistance > 50) {
+            // Move toward ball more slowly when far away
+            const dirX = ball.x - this.x;
+            const dirY = ball.y - this.y;
+            const length = Math.sqrt(dirX ** 2 + dirY ** 2);
+            
+            if (length > 0) {
+                dx = (dirX / length) * this.speed * 0.6; // Even slower approach
+                dy = (dirY / length) * this.speed * 0.6;
+                
+                // Add more randomness to make AI less perfect
+                dx += (Math.random() - 0.5) * 1.0;
+                dy += (Math.random() - 0.5) * 1.0;
+            }
+        } else if (ballDistance > 25) {
+            // Move toward ball when medium distance
+            const dirX = ball.x - this.x;
+            const dirY = ball.y - this.y;
+            const length = Math.sqrt(dirX ** 2 + dirY ** 2);
+            
+            if (length > 0) {
+                dx = (dirX / length) * this.speed * 0.8;
+                dy = (dirY / length) * this.speed * 0.8;
+            }
+        } else {
+            // When close to ball, try to kick it toward left goal (AI's goal)
+            const goalDirection = Math.atan2(300 - ball.y, this.targetGoalX - ball.x);
+            dx = Math.cos(goalDirection) * this.speed * 0.3; // Gentler kicks
+            dy = Math.sin(goalDirection) * this.speed * 0.3;
+        }
+        
+        // Update position with boundary checking
+        const newX = this.x + dx;
+        const newY = this.y + dy;
+        
+        // Keep AI within field bounds
+        if (newX >= 40 && newX <= 760) this.x = newX;
+        if (newY >= 40 && newY <= 560) this.y = newY;
+        
+        this.lastMoveX = dx;
+        this.lastMoveY = dy;
+        
+        // More frequent reaction delays to make AI more human-like
+        if (Math.random() < 0.03) {
+            this.reactionDelay = Math.floor(Math.random() * 40) + 10;
+        }
+    }
+    
+    draw(ctx) {
+        // Draw AI player body
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Draw simple face (angry expression for competition)
+        ctx.fillStyle = 'white';
+        // Eyes
+        ctx.beginPath();
+        ctx.arc(this.x - 6, this.y - 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 6, this.y - 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Eye pupils (angry slant)
+        ctx.fillStyle = 'black';
+        ctx.beginPath();
+        ctx.arc(this.x - 6, this.y - 4, 1, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(this.x + 6, this.y - 4, 1, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Angry mouth (upside down smile)
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y + 8, 6, Math.PI, 0);
+        ctx.stroke();
+    }
+    
+    collidesWith(ball) {
+        const distance = Math.sqrt((this.x - ball.x) ** 2 + (this.y - ball.y) ** 2);
+        return distance < this.radius + ball.radius;
+    }
+    
+    getKickDirection() {
+        // AI tries to kick toward left goal (AI's goal to score on player)
+        const targetX = 35; // Left goal center
+        const targetY = 300;
+        
+        const dirX = targetX - this.x;
+        const dirY = targetY - this.y;
+        const length = Math.sqrt(dirX ** 2 + dirY ** 2);
+        
+        if (length === 0) return { x: -1, y: 0 }; // Default kick left
+        
+        return {
+            x: dirX / length,
+            y: dirY / length
+        };
     }
 }
 
